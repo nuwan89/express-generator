@@ -1,0 +1,11 @@
+development
+-----------
+docker-compose up -d
+docker exec -it zequelize sh
+npx plop route -- --name my-model
+
+
+Publish
+--------
+npm login
+npm publish --access public

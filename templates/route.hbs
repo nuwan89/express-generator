@@ -1,0 +1,13 @@
+var express = require('express');
+
+var router = express.Router();
+
+const {{snakeCase name}}_controller = require('../controllers').{{snakeCase name}}_controller;
+
+router.get('/', {{snakeCase name}}_controller.list);
+router.post('/', {{snakeCase name}}_controller.create);
+router.get('/search', {{snakeCase name}}_controller.search);
+router.get('/:id', {{snakeCase name}}_controller.get);
+router.put('/:id', {{snakeCase name}}_controller.put);
+
+module.exports = router;

@@ -1,0 +1,24 @@
+{
+  "name": "@slimkit-ui/express-generator",
+  "version": "1.0.0",
+  "description": "Generator for express sequelize projects",
+  "main": "index.js",
+  "bin": {
+    "zircon-gen": "./index.js"
+  },
+  "preferGlobal": true,
+  "scripts": {
+    "start": "plop"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "minimist": "^1.2.5",
+    "plop": "^2.7.4"
+  },
+  "keywords": [
+    "sequelize",
+    "generator"
+  ],
+  "author": "Thilanka N. Liyanaarachchi",
+  "license": "ISC"
+}

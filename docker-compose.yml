@@ -1,0 +1,21 @@
+version: "3.5"
+
+services: 
+    zequelize:
+        image: zirconlabz/node12
+        container_name: zequelize
+        hostname: zequelize
+        # restart: unless-stopped
+        ports: 
+            - 5006:8000
+            - 9229:9229
+        volumes: 
+            - ./:/app
+
+        command: sh -c "while true; do sleep 30; done;"
+        # command: sh -c "npm i minimist --save && node ."
+
+networks:
+    default:
+        external: true
+        name: home

@@ -1,0 +1,30 @@
+'use strict';
+
+module.exports = (sequelize, DataTypes) => {
+
+  const {{pascalCase name}} = sequelize.define('{{snakeCase name}}',
+    {
+      //age: DataTypes.INTEGER,
+      //name: DataTypes.INTEGER,
+    },
+    {
+      // disable the modification of tablenames; By default, sequelize will automatically
+      // transform all passed model names (first parameter of define) into plural.
+      // if you don't want that, set the following
+      freezeTableName: true,
+    });
+
+  // {{pascalCase name}}.hasOne(category);
+
+//  {{pascalCase name}}.associate = (models) => {
+
+//    {{pascalCase name}}.belongsTo(models.lawyer, {
+//      foreignKey: 'lawyer_id'
+//    })
+
+    // {{pascalCase name}}.belongsToMany(models.my_other_model, { through: models.my_other_model, foreignKey: 'custom_id' }); // Required for join queries when include: model: 
+
+//  };
+
+  return {{pascalCase name}};
+};

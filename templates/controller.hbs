@@ -1,0 +1,104 @@
+const { Op } = require('sequelize');
+
+/**
+ * This is the controller class for {{name}}
+ */
+const {{snakeCase name}} = require('../../models').{{pascalCase name}};
+
+module.exports = {
+
+    create(req, res) {
+        {{snakeCase name}}
+            .create({
+                //name: req.body.name,
+            })
+            .then({{camelCase name}} => res.status(201).send({{camelCase name}}))
+            .catch(error => res.status(400).send(error));
+    },
+
+    get(req, res) {
+
+        let dbResult = {{snakeCase name}}.findOne({
+            where: { id: req.params.id },
+//            include: [{
+//                model: stock_item_category,
+//                attributes: ['id', 'name']
+//            }]
+        }).then({{camelCase name}} => {
+            if ({{camelCase name}}) {
+//                let {{camelCase name}}Dto = Object.assign({ category: item.stock_item_category }, item.toJSON());
+//                delete itemDto[stock_item_category]; //Removing redundant info from model. Might need Mapper for this!
+                res.status(200).send({{camelCase name}}Dto);
+            } else {
+                res.status(404).send()
+            }
+        }).catch(error => res.status(400).send(error));
+
+
+        // let dbResult = stock_item
+        //     .findByPk(req.params.id)
+        //     .then(item => {
+        //         if (item)
+        //             res.status(200).send(item)
+        //         else
+        //             res.status(404).send()
+        //     }).catch(error => res.status(400).send(error));
+
+        //console.log(JSON.stringify(dbResult));
+        return dbResult;
+    },
+
+    async put(req, res) {
+        const { id } = req.params;
+        try {
+            const updated = await {{snakeCase name}}.update({
+                //name: req.body.name,
+            }, {
+                where: { id: id },
+                returning: true, //Return the updated model back
+                plain: true // makes sure that the returned instances are just plain objects
+            });
+
+            if (updated) {
+                res.status(200).send(updated[1]) //Returning persisted entity POSTGRE ONLY FEATURE!
+            }
+        } catch (error) {
+            res.status(400).send(error);
+        }
+    },
+
+    list(req, res) {
+
+        {{snakeCase name}}
+            .findAll()
+            .then({{camelCase name}} => res.status(200).send({{camelCase name}}))
+            .catch(error => res.status(400).send(error));
+    },
+
+    /**
+     * This search is and based and it will search only exact matching values
+     */
+    async search(req, res) {
+        let criteria = []
+        // Convert to key value object
+        for (const [key, value] of Object.entries(req.query)) {
+            if (value) {
+                let obj = {}
+                obj[key] = value
+                criteria.push(obj)
+            }
+        }
+
+        try {
+            let results = await {{snakeCase name}}
+                .findAll({
+                    where: { [Op.and]: criteria }
+                })
+
+            res.status(200).send(results)
+        } catch (error) {
+            res.status(400).send(error)
+        }
+    },
+
+};
