@@ -9,3 +9,8 @@ Publish
 --------
 npm login
 npm publish --access public
+
+Remove
+-------
+
+npm unpublish --force @slimkit-ui/express-generator@1.0.0
