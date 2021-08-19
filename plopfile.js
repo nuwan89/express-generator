@@ -45,6 +45,104 @@ module.exports = function (plop) {
     // 	});
     // });
 
+    plop.setGenerator('sync', {
+        description: 'Sync migration with model',
+        prompts: [
+            {
+                type: 'input',
+                name: 'model',
+                message: 'Model file path'
+            },
+            {
+                type: 'input',
+                name: 'migration',
+                message: 'Migration file path'
+            },
+            {
+                type: 'input',
+                name: 'migration',
+                message: 'Migration file path'
+            },
+        ],
+        actions: (args) => {
+            const actions = []
+            console.log(args);
+            const model_abs_path = path.join(process.cwd(), args.model)
+            //////////////////////// BUILT AST MODEL ////////////////////
+            const source = fs.readFileSync(model_abs_path, { encoding: "utf-8" })
+            let model_ast = parse(source)
+            let model_body = model_ast.program.body
+            let model_properties = {}
+            let model_source_var_name
+            visit(model_body, { // Read model properties
+                visitCallExpression: (path) => {
+                    if (path.node.callee.object.name === "sequelize" && path.node.callee.property.name === "define") {
+                        // console.log("++++++++++++++++++++++++++++++++++++++++++");
+                        // console.log(chalk.magenta(path.node.callee));
+                        // model_source_var_name => to filter associations
+                        model_source_var_name = path.parent.value.id.name // Eg: CaseFile => const CaseFile = sequelize.define(..)
+                        const [model_def_id, model_field_obj] = path.node.arguments
+                        model_properties = model_field_obj.properties
+                    }
+                    return false
+                }
+            })
+            const relation_details = []
+            visit(model_body, { //Read entity relationships
+                visitCallExpression: (path) => {
+                    if (path.node.callee.object.name === model_source_var_name) {
+                    // if (path.node.callee.object.name === model_source_var_name && path.node.callee.property.name === "define") {
+                        console.log(chalk.yellowBright(path.node.callee.property.name));
+                        // console.log(path.node.arguments);
+                        relation_details.push(get_js_obj_from_associations(path.node.arguments))
+                    }
+
+                    return false
+                }
+            })
+
+            const fields_obj = get_js_obj_from_properties(model_properties)
+            console.log(fields_obj);
+            console.log(relation_details);
+            ////////////////////////// Extract associations ////////////////////
+            // visit(model_body, {
+            //     visitAssignmentExpression: function (path) {
+            //         // console.log(path.node.right);
+            //         if (path.node.left.object.name === "module") {
+            //             // console.log("=====================================++=========================");
+            //             this.traverse(path)
+            //             // console.log("=====================================++=========================");
+            //         }
+            //         if (path.node.left.object.name === model_source_var_name && path.node.left.property.name === 'associate') {
+            //             console.log("==============================================================");
+            //             console.log(path.node.left.property.name);
+            //             console.log(path.node.left.object.name);
+            //             console.log(chalk.cyan("Its an as"));
+            //             console.log(path);
+            //             this.traverse(path)
+            //         }
+            //         return false
+            //         // this.visit(path)
+            //     }
+            // })
+            // console.log(body);
+            //////////////////////// BUILT AST MODEL END ////////////////////
+            // const migration_abs_path = path.join(process.cwd(), args.migration)
+            // console.log(migration_abs_path);
+            // actions.push({
+            //     type: 'modify',
+            //     path: migration_abs_path,
+            //     transform: (source) => {
+
+            //         let ast = parse(source)
+            //         let body = ast.program.body
+            //     }
+            // })
+            return actions
+        }
+
+    })
+
     plop.setGenerator('route', {
         description: 'Generate new express rest route',
         prompts: [
@@ -172,6 +270,31 @@ module.exports = function (plop) {
                 b.callExpression(b.identifier('require'), [b.literal(require_path)])
             )
         ]);
+    }
+
+    const get_js_obj_from_properties = (properties) => {
+        const field_obj = {}
+        properties.forEach(prop => {
+            field_obj[prop.key.name] = { data_type: prop.value.property.name }
+            // console.log(`${prop.key.name}: ${prop.value.object.name}.${prop.value.property.name}`);
+        });
+        // console.log(field_obj);
+        return field_obj
+    }
+
+    const get_js_obj_from_associations = (association_args) => {
+
+        let relation_details = {}
+        const [related_entity, relation_obj_expression] = association_args
+        relation_details.foreign_entity = related_entity.property.name
+
+        relation_obj_expression.properties.forEach(prop => {
+            relation_details[prop.key.name] = prop.value.value
+        })
+        
+        // console.log(chalk.yellowBright(JSON.stringify(relation_details)));
+        
+        return relation_details
     }
 
     const add_module_exports = (ast_node, var_name) => {
