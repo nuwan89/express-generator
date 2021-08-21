@@ -14,3 +14,8 @@ Remove
 -------
 
 npm unpublish --force @slimkit-ui/express-generator@1.0.0
+
+Running
+-------
+cd x
+npx plop sync -- --model models/case_file.js --migration migrations/create-case-file.js

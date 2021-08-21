@@ -58,11 +58,11 @@ module.exports = function (plop) {
                 name: 'migration',
                 message: 'Migration file path'
             },
-            {
-                type: 'input',
-                name: 'migration',
-                message: 'Migration file path'
-            },
+            // {
+            //     type: 'input',
+            //     name: 'migration',
+            //     message: 'Migration file path'
+            // },
         ],
         actions: (args) => {
             const actions = []
@@ -91,7 +91,7 @@ module.exports = function (plop) {
             visit(model_body, { //Read entity relationships
                 visitCallExpression: (path) => {
                     if (path.node.callee.object.name === model_source_var_name) {
-                    // if (path.node.callee.object.name === model_source_var_name && path.node.callee.property.name === "define") {
+                        // if (path.node.callee.object.name === model_source_var_name && path.node.callee.property.name === "define") {
                         console.log(chalk.yellowBright(path.node.callee.property.name));
                         // console.log(path.node.arguments);
                         relation_details.push(get_js_obj_from_associations(path.node.arguments))
@@ -101,10 +101,62 @@ module.exports = function (plop) {
                 }
             })
 
-            const fields_obj = get_js_obj_from_properties(model_properties)
-            console.log(fields_obj);
+            const model_fields = get_model_fields_from_properties(model_properties)
             console.log(relation_details);
-            ////////////////////////// Extract associations ////////////////////
+            const migrations_abs_path = path.join(process.cwd(), args.migration)
+            actions.push({ //Update migration file with fields and relationships
+                type: 'modify',
+                path: migrations_abs_path,
+                transform: (source, args) => {
+
+                    let ast = parse(source)
+                    let body = ast.program.body
+
+                    //Get QueryInterface variable name:
+                    // visit(body, {
+                    //     visitFunction: function (path) {
+                    //         console.log(chalk.bgGreen("func"));
+                    //         console.log(path.node.params[0].name);
+                    //         if(path.node.params[0] === '') {
+
+                    //         }
+                    //         // return false
+                    //         this.traverse(path)
+                    //     },
+                    //     visitFunctionDeclaration: (path) => {
+                    //         console.log(chalk.bgGreen("-------------------------dec"));
+                    //         return false
+                    //     },
+                    //     visitFunctionExpression: (path) => {
+                    //         console.log(chalk.bgGreen("exp"));
+                    //         return false
+                    //     }
+                    // })
+
+                    visit(body, {
+                        visitCallExpression: (path) => {
+                            if (path.node.callee.object.name === 'queryInterface' && path.node.callee.property.name === 'createTable') {
+                                console.log(chalk.bgGreen("MIGRATION AST CALL EXP"));
+                                console.log(path.node.arguments[1]);
+                                //Get feilds in model
+                                const existing_fields_in_migration = get_fields_from_migration_create_table_arg(model_fields, relation_details, path.node.arguments[1].properties)
+                                model_fields.forEach(field => {
+
+                                })
+                            }
+                            return false
+                        }
+                    })
+                    // ast.program.body = body
+                    // console.log(ast.program.body[0].declarations[0].init);
+                    console.log("================== MIGRATION =====================");
+                    console.log(print(ast).code);
+                    return print(ast).code
+                }
+            })
+
+            // actions = []
+
             // visit(model_body, {
             //     visitAssignmentExpression: function (path) {
             //         // console.log(path.node.right);
@@ -272,14 +324,59 @@ module.exports = function (plop) {
         ]);
     }
 
-    const get_js_obj_from_properties = (properties) => {
-        const field_obj = {}
+    const get_fields_from_migration_create_table_arg = (model_fields, relation_details, migration_field_properties) => {
+        const fields = []
+        console.log(model_fields);
+        console.log(relation_details);
+        
+        model_fields.forEach(model_field => {
+            console.log(model_field.name);
+            let existing_migration_field = migration_field_properties.filter(mig_prop => mig_prop.key.name === model_field.name)
+            if (existing_migration_field.length === 1) {
+                existing_migration_field = existing_migration_field[0]
+                console.log("(((((((((((((((((((((((((((((((((((((((****_UUUUUU");
+                
+                // Set data type
+                let migration_field_data_type = existing_migration_field.value.properties.filter(migration_field_prop => migration_field_prop.key.name === "type");
+                if(migration_field_data_type.length == 1){
+                    migration_field_data_type = migration_field_data_type[0]
+                    
+                    migration_field_data_type.value.property.name = model_field.data_type
+
+                } else { //Add type attribute to already existing field in migration
+                    console.log(chalk.greenBright("Properties of migration field: " + model_field.name));
+                    const b = recast_types.builders
+                    // let type_property = b.property('init', b.identifier("type"), b.memberExpression()  b.objectProperty(b.identifier('Sequelize'), b.literal("ABC"))) 
+
+                    // let type_property = b.property('init', b.identifier("type"), b.memberExpression(b.identifier("Sequelize"), b.identifier("STRINGGGG")))
+                    let type_property = b.property('init', b.identifier("type"), b.memberExpression(b.identifier("Sequelize"), b.identifier(model_field.data_type)))//TODO: Change the hardcoded Sequelize
+                    // type_property.value = b.mem
+                    console.log(type_property);
+                    existing_migration_field.value.properties.push(type_property)
+                    console.log("(((((((((((((((((((((((((((((((((((((((****");
+                }
+                // Update any required attributes of the field
+            } else { //No entry in migration - needs to add new property
+
+            }
+
+            // fields.push({name: model_field.key.name, val: model_field.value.properties    })
+        });
+
+        console.log(migration_field_properties[0].value.properties[0]);
+
+        return migration_field_properties
+        
+    }
+
+    const get_model_fields_from_properties = (properties) => {
+        const fields = []
         properties.forEach(prop => {
-            field_obj[prop.key.name] = { data_type: prop.value.property.name }
+            fields.push({ name: prop.key.name, data_type: prop.value.property.name })
             // console.log(`${prop.key.name}: ${prop.value.object.name}.${prop.value.property.name}`);
         });
         // console.log(field_obj);
-        return field_obj
+        return fields
     }
 
     const get_js_obj_from_associations = (association_args) => {
@@ -291,9 +388,9 @@ module.exports = function (plop) {
         relation_obj_expression.properties.forEach(prop => {
             relation_details[prop.key.name] = prop.value.value
         })
-        
+
         // console.log(chalk.yellowBright(JSON.stringify(relation_details)));
-        
+
         return relation_details
     }
 
