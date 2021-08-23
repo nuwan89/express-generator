@@ -94,7 +94,7 @@ module.exports = function (plop) {
                         // if (path.node.callee.object.name === model_source_var_name && path.node.callee.property.name === "define") {
                         console.log(chalk.yellowBright(path.node.callee.property.name));
                         // console.log(path.node.arguments);
-                        relation_details.push(get_js_obj_from_associations(path.node.arguments))
+                        relation_details.push({...get_js_obj_from_associations(path.node.arguments), relationship: path.node.callee.property.name})
                     }
 
                     return false
@@ -326,15 +326,19 @@ module.exports = function (plop) {
 
     const get_fields_from_migration_create_table_arg = (model_fields, relation_details, migration_field_properties) => {
         const fields = []
-        console.log(model_fields);
+        // console.log(model_fields);
+        console.log(chalk.bgMagenta("xxxxxxxxxxxxxx"));
         console.log(relation_details);
+        console.log(chalk.bgMagenta("xxxxxxxxxxxxxx"));
+        const b = recast_types.builders
         
         model_fields.forEach(model_field => {
-            console.log(model_field.name);
+            // console.log(model_field.name);
             let existing_migration_field = migration_field_properties.filter(mig_prop => mig_prop.key.name === model_field.name)
-            if (existing_migration_field.length === 1) {
+            
+            if (existing_migration_field.length === 1) { //Model field exists in migration file
                 existing_migration_field = existing_migration_field[0]
-                console.log("(((((((((((((((((((((((((((((((((((((((****_UUUUUU");
+                // console.log("(((((((((((((((((((((((((((((((((((((((****_UUUUUU=");
                 
                 // Set data type
                 let migration_field_data_type = existing_migration_field.value.properties.filter(migration_field_prop => migration_field_prop.key.name === "type");
@@ -342,31 +346,46 @@ module.exports = function (plop) {
                     migration_field_data_type = migration_field_data_type[0]
                     
                     migration_field_data_type.value.property.name = model_field.data_type
-
-                } else { //Add type attribute to already existing field in migration
-                    console.log(chalk.greenBright("Properties of migration field: " + model_field.name));
-                    const b = recast_types.builders
-                    // let type_property = b.property('init', b.identifier("type"), b.memberExpression()  b.objectProperty(b.identifier('Sequelize'), b.literal("ABC"))) 
-
-                    // let type_property = b.property('init', b.identifier("type"), b.memberExpression(b.identifier("Sequelize"), b.identifier("STRINGGGG")))
+                    
+                } else { //Add missing type attribute to already existing field in migration
+                    // console.log(chalk.greenBright("Properties of migration field: " + model_field.name));
                     let type_property = b.property('init', b.identifier("type"), b.memberExpression(b.identifier("Sequelize"), b.identifier(model_field.data_type)))//TODO: Change the hardcoded Sequelize
                     // type_property.value = b.mem
-                    console.log(type_property);
+                    // console.log(type_property);
                     existing_migration_field.value.properties.push(type_property)
-                    console.log("(((((((((((((((((((((((((((((((((((((((****");
+                    // console.log("(((((((((((((((((((((((((((((((((((((((****");
                 }
-                // Update any required attributes of the field
-            } else { //No entry in migration - needs to add new property
-
+                // Update foregn key constraints if defined
+                let foreign_key_relationship = relation_details.filter(r => r.foreignKey == model_field.name)
+                if(foreign_key_relationship.length == 1){
+                    foreign_key_relationship = foreign_key_relationship[0]
+                    // Check if relationship exists in migration field
+                    let migration_field_relationship = existing_migration_field.value.properties.filter(migration_field_prop => migration_field_prop.key.name === "references");
+                    console.log("YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY");
+                    console.log(migration_field_relationship);
+                }
+                // for (let model_relation in relation_details) {
+                //     if(model_relation.relationship == 'belongsTo') { //Add foreign key
+                //         // Edit 
+                //     }
+                // }
+            } else { //No entry in migration - needs to add missing new property/field
+                let type_property = b.property('init', b.identifier("type"), b.memberExpression(b.identifier("Sequelize"), b.identifier(model_field.data_type)))//TODO: Change the hardcoded Sequelize
+                let new_field = b.property('init', b.identifier(model_field.name), b.objectExpression([type_property]))
+                migration_field_properties.push(new_field)
             }
 
             // fields.push({name: model_field.key.name, val: model_field.value.properties    })
         });
 
-        console.log(migration_field_properties[0].value.properties[0]);
+        // console.log(migration_field_properties[0].value.properties[0]);
 
         return migration_field_properties
         
+    }
+
+    const get_migration_foreign_object = () => {
+
     }
 
     const get_model_fields_from_properties = (properties) => {
@@ -380,6 +399,10 @@ module.exports = function (plop) {
     }
 
     const get_js_obj_from_associations = (association_args) => {
+
+        console.log(chalk.blueBright("****************"));
+        console.log(association_args);
+        console.log(chalk.blueBright("****************"));
 
         let relation_details = {}
         const [related_entity, relation_obj_expression] = association_args
