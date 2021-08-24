@@ -325,8 +325,7 @@ module.exports = function (plop) {
     }
 
     const get_fields_from_migration_create_table_arg = (model_fields, relation_details, migration_field_properties) => {
-        const fields = []
-        // console.log(model_fields);
+        
         console.log(chalk.bgMagenta("xxxxxxxxxxxxxx"));
         console.log(relation_details);
         console.log(chalk.bgMagenta("xxxxxxxxxxxxxx"));
@@ -337,9 +336,7 @@ module.exports = function (plop) {
             let existing_migration_field = migration_field_properties.filter(mig_prop => mig_prop.key.name === model_field.name)
             
             if (existing_migration_field.length === 1) { //Model field exists in migration file
-                existing_migration_field = existing_migration_field[0]
-                // console.log("(((((((((((((((((((((((((((((((((((((((****_UUUUUU=");
-                
+                existing_migration_field = existing_migration_field[0] 
                 // Set data type
                 let migration_field_data_type = existing_migration_field.value.properties.filter(migration_field_prop => migration_field_prop.key.name === "type");
                 if(migration_field_data_type.length == 1){
@@ -348,61 +345,69 @@ module.exports = function (plop) {
                     migration_field_data_type.value.property.name = model_field.data_type
                     
                 } else { //Add missing type attribute to already existing field in migration
-                    // console.log(chalk.greenBright("Properties of migration field: " + model_field.name));
                     let type_property = b.property('init', b.identifier("type"), b.memberExpression(b.identifier("Sequelize"), b.identifier(model_field.data_type)))//TODO: Change the hardcoded Sequelize
-                    // type_property.value = b.mem
-                    // console.log(type_property);
+
                     existing_migration_field.value.properties.push(type_property)
-                    // console.log("(((((((((((((((((((((((((((((((((((((((****");
+
                 }
                 // Update foregn key constraints if defined
                 let foreign_key_relationship = relation_details.filter(r => r.foreignKey == model_field.name)
-                if(foreign_key_relationship.length == 1){
+                if(foreign_key_relationship.length == 1){ //Foreign relationship exists
                     foreign_key_relationship = foreign_key_relationship[0]
                     // Check if relationship exists in migration field
                     let migration_field_relationship = existing_migration_field.value.properties.filter(migration_field_prop => migration_field_prop.key.name === "references");
-                    console.log("YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY");
-                    console.log(migration_field_relationship);
+                    if(migration_field_relationship.length == 1){ //Foreign relationship already defined in the migration
+                        console.log("YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY: "+foreign_key_relationship);
+                        migration_field_relationship = migration_field_relationship[0]
+                        // Add model property in references
+                        migration_field_relationship.value.properties = []
+                        const model_property = b.property('init', b.identifier('model'), b.identifier(foreign_key_relationship.foreign_entity))
+                        const key_property = b.property('init', b.identifier('key'), b.identifier(foreign_key_relationship.foreignKey))
+                        migration_field_relationship.value.properties.push(model_property)
+                        migration_field_relationship.value.properties.push(key_property)
+                        // Add key property in references
+                        
+                        // Update foreign relation and key name in the migration file
+                        // migration_field_relationship
+                        console.log(migration_field_relationship.value.properties);
+                    }
                 }
-                // for (let model_relation in relation_details) {
-                //     if(model_relation.relationship == 'belongsTo') { //Add foreign key
-                //         // Edit 
-                //     }
-                // }
+
             } else { //No entry in migration - needs to add missing new property/field
                 let type_property = b.property('init', b.identifier("type"), b.memberExpression(b.identifier("Sequelize"), b.identifier(model_field.data_type)))//TODO: Change the hardcoded Sequelize
-                let new_field = b.property('init', b.identifier(model_field.name), b.objectExpression([type_property]))
+                const property_array = [type_property]
+                // Check if relationship exists in migration field
+                let foreign_key_relationship = relation_details.filter(r => r.foreignKey == model_field.name)
+                if(foreign_key_relationship.length == 1){ //Foreign relationship exists
+                    foreign_key_relationship = foreign_key_relationship[0]
+                    // Create references object
+                    const model_property = b.property('init', b.identifier('model'), b.identifier(foreign_key_relationship.foreign_entity))
+                    const key_property = b.property('init', b.identifier('key'), b.identifier(foreign_key_relationship.foreignKey))
+                    const refernces_obj = b.objectExpression([model_property, key_property])
+                    const references_property = b.property('init', b.identifier('references'), refernces_obj)
+                    property_array.push(references_property)
+                }
+                let new_field = b.property('init', b.identifier(model_field.name), b.objectExpression(property_array))
                 migration_field_properties.push(new_field)
             }
 
-            // fields.push({name: model_field.key.name, val: model_field.value.properties    })
         });
 
-        // console.log(migration_field_properties[0].value.properties[0]);
 
         return migration_field_properties
         
-    }
-
-    const get_migration_foreign_object = () => {
-
     }
 
     const get_model_fields_from_properties = (properties) => {
         const fields = []
         properties.forEach(prop => {
             fields.push({ name: prop.key.name, data_type: prop.value.property.name })
-            // console.log(`${prop.key.name}: ${prop.value.object.name}.${prop.value.property.name}`);
         });
-        // console.log(field_obj);
+
         return fields
     }
 
     const get_js_obj_from_associations = (association_args) => {
-
-        console.log(chalk.blueBright("****************"));
-        console.log(association_args);
-        console.log(chalk.blueBright("****************"));
 
         let relation_details = {}
         const [related_entity, relation_obj_expression] = association_args
@@ -411,8 +416,6 @@ module.exports = function (plop) {
         relation_obj_expression.properties.forEach(prop => {
             relation_details[prop.key.name] = prop.value.value
         })
-
-        // console.log(chalk.yellowBright(JSON.stringify(relation_details)));
 
         return relation_details
     }
