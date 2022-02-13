@@ -45,6 +45,13 @@ module.exports = function (plop) {
     // 	});
     // });
 
+    /**
+     * Implementation of zircon-gen sync command
+     * npx zircon-gen sync --model my_model.js --migration my_migration_file.js
+     * 
+     * One way sync from Model to Migration.
+     * 
+     */
     plop.setGenerator('sync', {
         description: 'Sync migration with model',
         prompts: [
@@ -58,11 +65,6 @@ module.exports = function (plop) {
                 name: 'migration',
                 message: 'Migration file path'
             },
-            // {
-            //     type: 'input',
-            //     name: 'migration',
-            //     message: 'Migration file path'
-            // },
         ],
         actions: (args) => {
             const actions = []
@@ -91,17 +93,16 @@ module.exports = function (plop) {
             visit(model_body, { //Read entity relationships
                 visitCallExpression: (path) => {
                     if (path.node.callee.object.name === model_source_var_name) {
-                        // if (path.node.callee.object.name === model_source_var_name && path.node.callee.property.name === "define") {
-                        console.log(chalk.yellowBright(path.node.callee.property.name));
-                        // console.log(path.node.arguments);
                         relation_details.push({...get_js_obj_from_associations(path.node.arguments), relationship: path.node.callee.property.name})
                     }
-
                     return false
                 }
             })
 
+            console.log(chalk.bgGreen("model_fields"));
             const model_fields = get_model_fields_from_properties(model_properties)
+            console.log(model_fields);
+            console.log(chalk.bgGreen("relation_details"));
             console.log(relation_details);
             const migrations_abs_path = path.join(process.cwd(), args.migration)
             actions.push({ //Update migration file with fields and relationships
@@ -136,13 +137,10 @@ module.exports = function (plop) {
                     visit(body, {
                         visitCallExpression: (path) => {
                             if (path.node.callee.object.name === 'queryInterface' && path.node.callee.property.name === 'createTable') {
-                                console.log(chalk.bgGreen("MIGRATION AST CALL EXP"));
-                                console.log(path.node.arguments[1]);
+                                // console.log(chalk.bgGreen("MIGRATION FILE:"));
+                                // console.log(path.node.arguments[1]);
                                 //Get feilds in model
-                                const existing_fields_in_migration = get_fields_from_migration_create_table_arg(model_fields, relation_details, path.node.arguments[1].properties)
-                                model_fields.forEach(field => {
-
-                                })
+                                get_fields_from_migration_create_table_arg(model_fields, relation_details, path.node.arguments[1].properties)
                             }
                             return false
                         }
@@ -318,20 +316,32 @@ module.exports = function (plop) {
         return nodeX = b.variableDeclaration("const", [
             b.variableDeclarator(
                 b.identifier(var_name),
-                // b.literal(0)
                 b.callExpression(b.identifier('require'), [b.literal(require_path)])
             )
         ]);
     }
 
+    /**
+     * TODO: Change this method name to meaningful
+     * @param {*} model_fields Defined in the model:  [{ name: 'lawyer_id', data_type: 'INTEGER' },]
+     * @param {*} relation_details Defined in the model: [
+        {
+            foreign_entity: 'lawyer',
+            foreignKey: 'lawyer_id',
+            relationship: 'belongsTo'
+        },
+        ]
+     * @param {*} migration_field_properties Second arg of createTable() in Migration file
+     * @returns 
+     */
     const get_fields_from_migration_create_table_arg = (model_fields, relation_details, migration_field_properties) => {
-        
-        console.log(chalk.bgMagenta("xxxxxxxxxxxxxx"));
-        console.log(relation_details);
-        console.log(chalk.bgMagenta("xxxxxxxxxxxxxx"));
+        // console.log(migration_field_properties);
+        // console.log(chalk.bgMagenta("xxxxxxxxxxxxxx"));
+        // console.log(relation_details);
+        // console.log(chalk.bgMagenta("xxxxxxxxxxxxxx"));
         const b = recast_types.builders
         
-        model_fields.forEach(model_field => {
+        model_fields.forEach(model_field => { //Sync model fields with migration fields/props
             // console.log(model_field.name);
             let existing_migration_field = migration_field_properties.filter(mig_prop => mig_prop.key.name === model_field.name)
             
@@ -357,19 +367,26 @@ module.exports = function (plop) {
                     // Check if relationship exists in migration field
                     let migration_field_relationship = existing_migration_field.value.properties.filter(migration_field_prop => migration_field_prop.key.name === "references");
                     if(migration_field_relationship.length == 1){ //Foreign relationship already defined in the migration
-                        console.log("YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY: "+foreign_key_relationship);
+                        // console.log("YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY: "+foreign_key_relationship);
                         migration_field_relationship = migration_field_relationship[0]
                         // Add model property in references
                         migration_field_relationship.value.properties = []
-                        const model_property = b.property('init', b.identifier('model'), b.identifier(foreign_key_relationship.foreign_entity))
-                        const key_property = b.property('init', b.identifier('key'), b.identifier(foreign_key_relationship.foreignKey))
+                        const model_property = b.property('init', b.identifier('model'), b.stringLiteral(foreign_key_relationship.foreign_entity))
+                        const key_property = b.property('init', b.identifier('key'), b.stringLiteral(foreign_key_relationship.foreignKey))
                         migration_field_relationship.value.properties.push(model_property)
                         migration_field_relationship.value.properties.push(key_property)
                         // Add key property in references
                         
                         // Update foreign relation and key name in the migration file
                         // migration_field_relationship
-                        console.log(migration_field_relationship.value.properties);
+                        // console.log(migration_field_relationship.value.properties);
+                    } else { //Foreign key constraint (references: {model: lawyer, key: lawyer_id}) not defined in migration field prop! Add it here
+                         // Create references object TODO: code duplication - create a method
+                        const model_property = b.property('init', b.identifier('model'), b.stringLiteral(foreign_key_relationship.foreign_entity))
+                        const key_property = b.property('init', b.identifier('key'), b.stringLiteral(foreign_key_relationship.foreignKey))
+                        const refernces_obj = b.objectExpression([model_property, key_property])
+                        const references_property = b.property('init', b.identifier('references'), refernces_obj)
+                        existing_migration_field.value.properties.push(references_property)
                     }
                 }
 
@@ -381,8 +398,8 @@ module.exports = function (plop) {
                 if(foreign_key_relationship.length == 1){ //Foreign relationship exists
                     foreign_key_relationship = foreign_key_relationship[0]
                     // Create references object
-                    const model_property = b.property('init', b.identifier('model'), b.identifier(foreign_key_relationship.foreign_entity))
-                    const key_property = b.property('init', b.identifier('key'), b.identifier(foreign_key_relationship.foreignKey))
+                    const model_property = b.property('init', b.identifier('model'), b.stringLiteral(foreign_key_relationship.foreign_entity))
+                    const key_property = b.property('init', b.identifier('key'), b.stringLiteral(foreign_key_relationship.foreignKey))
                     const refernces_obj = b.objectExpression([model_property, key_property])
                     const references_property = b.property('init', b.identifier('references'), refernces_obj)
                     property_array.push(references_property)
@@ -392,9 +409,11 @@ module.exports = function (plop) {
             }
 
         });
+        // Now we need to update missing relation_details in the migration fields/props
+        // relation_details.forEach(relation_detail =>{
 
-
-        return migration_field_properties
+        // })
+        // return migration_field_properties
         
     }
 
