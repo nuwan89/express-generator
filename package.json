@@ -3,6 +3,11 @@
   "version": "1.0.1",
   "description": "Generator for express js sequelize projects",
   "main": "index.js",
+  "files": [
+    "README.md",
+    "index.js",
+    "plopfile.js"
+  ],
   "bin": {
     "zircon-gen": "./index.js"
   },

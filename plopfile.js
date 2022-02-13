@@ -137,10 +137,8 @@ module.exports = function (plop) {
                     visit(body, {
                         visitCallExpression: (path) => {
                             if (path.node.callee.object.name === 'queryInterface' && path.node.callee.property.name === 'createTable') {
-                                // console.log(chalk.bgGreen("MIGRATION FILE:"));
-                                // console.log(path.node.arguments[1]);
-                                //Get feilds in model
-                                get_fields_from_migration_create_table_arg(model_fields, relation_details, path.node.arguments[1].properties)
+                                // Change migration file 
+                                translate_model_to_migration(model_fields, relation_details, path.node.arguments[1].properties)
                             }
                             return false
                         }
@@ -322,7 +320,9 @@ module.exports = function (plop) {
     }
 
     /**
-     * TODO: Change this method name to meaningful
+     * Update migration file by analysing model file's fields and relation details.
+     * NOTE: Foreign key reference will always be 'id'. This may need to be extracted from foreign table,
+     * but for now it's hard coded!
      * @param {*} model_fields Defined in the model:  [{ name: 'lawyer_id', data_type: 'INTEGER' },]
      * @param {*} relation_details Defined in the model: [
         {
@@ -334,7 +334,7 @@ module.exports = function (plop) {
      * @param {*} migration_field_properties Second arg of createTable() in Migration file
      * @returns 
      */
-    const get_fields_from_migration_create_table_arg = (model_fields, relation_details, migration_field_properties) => {
+    const translate_model_to_migration = (model_fields, relation_details, migration_field_properties) => {
         // console.log(migration_field_properties);
         // console.log(chalk.bgMagenta("xxxxxxxxxxxxxx"));
         // console.log(relation_details);
@@ -372,7 +372,7 @@ module.exports = function (plop) {
                         // Add model property in references
                         migration_field_relationship.value.properties = []
                         const model_property = b.property('init', b.identifier('model'), b.stringLiteral(foreign_key_relationship.foreign_entity))
-                        const key_property = b.property('init', b.identifier('key'), b.stringLiteral(foreign_key_relationship.foreignKey))
+                        const key_property = b.property('init', b.identifier('key'), b.stringLiteral('id'));
                         migration_field_relationship.value.properties.push(model_property)
                         migration_field_relationship.value.properties.push(key_property)
                         // Add key property in references
@@ -383,7 +383,7 @@ module.exports = function (plop) {
                     } else { //Foreign key constraint (references: {model: lawyer, key: lawyer_id}) not defined in migration field prop! Add it here
                          // Create references object TODO: code duplication - create a method
                         const model_property = b.property('init', b.identifier('model'), b.stringLiteral(foreign_key_relationship.foreign_entity))
-                        const key_property = b.property('init', b.identifier('key'), b.stringLiteral(foreign_key_relationship.foreignKey))
+                        const key_property = b.property('init', b.identifier('key'), b.stringLiteral('id'));
                         const refernces_obj = b.objectExpression([model_property, key_property])
                         const references_property = b.property('init', b.identifier('references'), refernces_obj)
                         existing_migration_field.value.properties.push(references_property)
@@ -399,7 +399,7 @@ module.exports = function (plop) {
                     foreign_key_relationship = foreign_key_relationship[0]
                     // Create references object
                     const model_property = b.property('init', b.identifier('model'), b.stringLiteral(foreign_key_relationship.foreign_entity))
-                    const key_property = b.property('init', b.identifier('key'), b.stringLiteral(foreign_key_relationship.foreignKey))
+                    const key_property = b.property('init', b.identifier('key'), b.stringLiteral('id'));
                     const refernces_obj = b.objectExpression([model_property, key_property])
                     const references_property = b.property('init', b.identifier('references'), refernces_obj)
                     property_array.push(references_property)
