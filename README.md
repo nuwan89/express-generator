@@ -3,6 +3,11 @@
 
 Zircon-gen is a simple command line utility runs on **nodejs** for syncing your **Sequelize model** with the **migration** file in your **express js** project. Changes in migration file won't affect the model file.
 
+## Installation
+
+```console
+npm i @slimkit-ui/express-generator --save-dev
+```
 ## Usage
 
 ```console
